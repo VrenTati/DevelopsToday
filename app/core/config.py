@@ -11,24 +11,14 @@ class RunConfig(BaseModel):
 
 class ApiV1Prefix(BaseModel):
     prefix: str = "/v1"
-    user: str = "/user"
-    auth: str = "/auth"
-    categories: str = "/categories"
-    transactions: str = "/transactions"
-    reports: str = "/reports"
-    user_categories: str = "/user_categories"
+    cat: str = "/cat"
+    mission: str = "/mission"
+    target: str = "/target"
 
 
 class ApiPrefix(BaseModel):
     prefix: str = "/api"
     v1: ApiV1Prefix = ApiV1Prefix()
-
-    @property
-    def bearer_token_url(self) -> str:
-        parts = (self.prefix, self.v1.prefix, self.v1.auth, "/login")
-        path = "".join(parts)
-        return path.removeprefix("/")
-
 
 class DatabaseConfig(BaseModel):
     url: PostgresDsn
