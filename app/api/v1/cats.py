@@ -14,7 +14,9 @@ router = APIRouter(prefix=settings.api.v1.cat)
 async def get_cats(
         db: AsyncSession = Depends(db_helper.session_getter),
 ):
-    return await db.execute(select(Cat))
+    cats = await db.execute(select(Cat))
+
+    return cats.scalars().all()
 
 @router.get("/{cat_id}", response_model=CatBase)
 async def get_cat(
