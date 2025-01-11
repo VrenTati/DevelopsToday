@@ -4,11 +4,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.models import db_helper, Cat
+import aiohttp
 
 from core.config import settings
 from core.schemas.cat_schema import CatBase, CatCreate, CatUpdate
 
 router = APIRouter(prefix=settings.api.v1.cat)
+
+async def validate_breed(breed: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.thecatapi.com/v1/breeds") as response:
+            if response.status != 200:
+                raise HTTPException(status_code=503, detail="Unable to validate breed")
+            breeds = {b["name"] for b in await response.json()}
+            if breed not in breeds:
+                raise HTTPException(status_code=400, detail="Invalid breed")
 
 @router.get("/", response_model=list[CatBase])
 async def get_cats(
@@ -33,6 +43,7 @@ async def create_cat(
         cat: CatCreate,
         db: AsyncSession = Depends(db_helper.session_getter),
 ):
+    await validate_breed(cat.breed)
     new_category = Cat(**cat.dict())
     db.add(new_category)
     await db.commit()
