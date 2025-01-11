@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -35,6 +35,15 @@ async def create_mission(
         mission: MissionCreate,
         db: AsyncSession = Depends(db_helper.session_getter),
 ):
+    result = await db.execute(select(Mission).filter(Mission.cat_id == mission.cat_id, Mission.is_complete == False))
+    existing_mission = result.scalars().first()
+
+    if existing_mission:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This cat already has an unfinished mission.",
+        )
+
     new_mission = Mission(is_complete=mission.is_complete, cat_id=mission.cat_id)
     db.add(new_mission)
     await db.commit()
@@ -83,7 +92,17 @@ async def update_target(
     await db.commit()
     await db.refresh(target)
 
+    result = await db.execute(select(Target).filter(Target.mission_id == mission_id))
+    targets = result.scalars().all()
+
+    if all(t.is_complete for t in targets):
+        mission.is_complete = True
+        db.add(mission)
+        await db.commit()
+        await db.refresh(mission)
+
     return target
+
 
 @router.put("/{mission_id}/assign_cat/{cat_id}", response_model=MissionBase)
 async def assign_cat_to_mission(
